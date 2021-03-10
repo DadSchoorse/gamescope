@@ -41,8 +41,29 @@
 
 [[vk::constant_id(0)]] const int  nLayerCount   = 1;
 [[vk::constant_id(1)]] const bool bSwapChannels = false;
+[[vk::constant_id(2)]] const bool bUseCAS       = true;
+[[vk::constant_id(3)]] const bool bLayer0Opaque = true;
 
 [numthreads(8, 8, 1)]
+
+#define A_GPU
+#define A_HLSL
+
+#include "ffx_a.h"
+
+float3 CasLoad(uint2 pos)
+{
+	return inLayerTex0.Load( int3( pos, 0 ) );
+}
+
+void CasInput(inout float red, inout float green, inout float blue)
+{
+	AFromSrgbF1( red );
+	AFromSrgbF1( green );
+	AFromSrgbF1( blue );
+}
+
+#include "ffx_cas.h"
 
 float4 sampleLayer(
 	Texture2D tex,
@@ -74,7 +95,36 @@ void main(
 
 	if ( nLayerCount >= 1 )
 	{
-		outputValue = sampleLayer( inLayerTex0, sampler0, index, float2( flOffset0X, flOffset0Y ), float2( flScale0X, flScale0Y ) );
+		if ( bUseCAS )
+		{
+			uint2 sizeLayer0;
+			inLayerTex0.GetDimensions( sizeLayer0.x, sizeLayer0.y );
+			uint2 outSizeLayer0 = uint2( float2( sizeLayer0 ) / float2( flScale0X, flScale0Y ) );
+			uint2 offsetLayer0 = uint2( float2( flOffset0X, flOffset0Y ) * float2( flScale0X, flScale0Y ) );
+			uint2 maxIndex = outSizeLayer0 + offsetLayer0;
+
+			if ( index.x < offsetLayer0.x || index.y < offsetLayer0.y || index.x >= maxIndex.x || index.y >= maxIndex.y )
+			{
+				outputValue = bLayer0Opaque ? float4( 0.0, 0.0, 0.0, 1.0 ) : float4( 0.0, 0.0, 0.0, 0.0 );
+			}
+			else
+			{
+				uint4 const0;
+				uint4 const1;
+				CasSetup( const0, const1, 0.0, sizeLayer0.x, sizeLayer0.y, outSizeLayer0.x, outSizeLayer0.y );
+				CasFilter( outputValue.r, outputValue.g, outputValue.b, index - offsetLayer0, const0, const1, false );
+
+				AToSrgbF1( outputValue.r );
+				AToSrgbF1( outputValue.g );
+				AToSrgbF1( outputValue.b );
+
+				outputValue.a = sampleLayer( inLayerTex0, sampler0, index, float2( flOffset0X, flOffset0Y ), float2( flScale0X, flScale0Y ) ).a;
+			}
+		}
+		else
+		{
+			outputValue = sampleLayer( inLayerTex0, sampler0, index, float2( flOffset0X, flOffset0Y ), float2( flScale0X, flScale0Y ) );
+		}
 	}
 
 	if ( nLayerCount >= 2 )
