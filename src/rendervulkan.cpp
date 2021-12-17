@@ -299,8 +299,18 @@ bool CVulkanTexture::BInit( uint32_t width, uint32_t height, VkFormat format, cr
 	VkResult res = VK_ERROR_INITIALIZATION_FAILED;
 
 	VkImageTiling tiling = (flags.bMappable || flags.bLinear) ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
-	VkImageUsageFlags usage = flags.bTextureable ? VK_IMAGE_USAGE_SAMPLED_BIT : VK_IMAGE_USAGE_STORAGE_BIT;
+	VkImageUsageFlags usage = 0;
 	VkMemoryPropertyFlags properties;
+
+	if ( flags.bSampled == true )
+	{
+		usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+	}
+
+	if ( flags.bStorage == true )
+	{
+		usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+	}
 
 	if ( flags.bTransferSrc == true )
 	{
@@ -660,8 +670,8 @@ bool CVulkanTexture::BInit( uint32_t width, uint32_t height, VkFormat format, cr
 
 	if ( bSwapChannels || !bHasAlpha )
 	{
-		// Right now this implies no storage bit - check it now as that's incompatible with swizzle
-		assert ( flags.bTextureable == true );
+		// not compatible with with swizzles
+		assert ( flags.bStorage == false );
 	}
 	
 	VkImageViewCreateInfo createInfo = {};
@@ -1569,6 +1579,7 @@ static bool vulkan_make_output_images( VulkanOutput_t *pOutput )
 {
 	CVulkanTexture::createFlags outputImageflags;
 	outputImageflags.bFlippable = true;
+	outputImageflags.bStorage = true;
 	outputImageflags.bTransferSrc = true; // for screenshots
 
 	pOutput->outputImage[0] = nullptr;
@@ -1864,7 +1875,7 @@ std::shared_ptr<CVulkanTexture> vulkan_create_texture_from_dmabuf( struct wlr_dm
 	std::shared_ptr<CVulkanTexture> pTex = std::make_shared<CVulkanTexture>();
 
 	CVulkanTexture::createFlags texCreateFlags;
-	texCreateFlags.bTextureable = true;
+	texCreateFlags.bSampled = true;
 	
 	if ( pTex->BInit( pDMA->width, pDMA->height, DRMFormatToVulkan( pDMA->format, true ), texCreateFlags, pDMA ) == false )
 		return nullptr;
@@ -1876,7 +1887,7 @@ std::shared_ptr<CVulkanTexture> vulkan_create_texture_from_bits( uint32_t width,
 {
 	std::shared_ptr<CVulkanTexture> pTex = std::make_shared<CVulkanTexture>();
 
-	texCreateFlags.bTextureable = true;
+	texCreateFlags.bSampled = true;
 	texCreateFlags.bTransferDst = true;
 
 	if ( pTex->BInit( width, height, format, texCreateFlags ) == false )
@@ -2553,7 +2564,7 @@ std::shared_ptr<CVulkanTexture> vulkan_create_texture_from_wlr_buffer( struct wl
 
 	std::shared_ptr<CVulkanTexture> pTex = std::make_shared<CVulkanTexture>();
 	CVulkanTexture::createFlags texCreateFlags = {};
-	texCreateFlags.bTextureable = true;
+	texCreateFlags.bSampled = true;
 	texCreateFlags.bTransferDst = true;
 	if ( pTex->BInit( width, height, format, texCreateFlags ) == false )
 		return nullptr;
