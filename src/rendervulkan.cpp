@@ -2561,7 +2561,9 @@ std::shared_ptr<CVulkanTexture> vulkan_create_texture_from_wlr_buffer( struct wl
 	VkCommandBuffer commandBuffer;
 	uint32_t handle = get_command_buffer( commandBuffer, nullptr );
 
-	VkBufferImageCopy region = {};
+	VkBufferImageCopy region = {
+		.bufferRowLength = (uint32_t)stride,
+	};
 	region.imageSubresource = {
 		.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 		.layerCount = 1
