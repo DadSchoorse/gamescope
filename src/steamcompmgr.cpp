@@ -1577,7 +1577,7 @@ paint_all()
 	const bool bOverrideCompositeHack = false;
 #endif
 
-	if ( BIsNested() == false && alwaysComposite == false && bCapture == false && bOverrideCompositeHack == false && bWasFirstFrame == false )
+	if ( BIsNested() == false && alwaysComposite == false && bCapture == false && bOverrideCompositeHack == false && bWasFirstFrame == false && composite.useFSRLayer0 == false)
 	{
 		int ret = drm_prepare( &g_DRM, &composite, &pipeline );
 		if ( ret == 0 )
